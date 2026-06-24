@@ -1,0 +1,1107 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"/>
+<title>EJAA - Orders · #5837 · Shopify</title>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-database-compat.js"></script>
+<style>
+/* ─── RESET ─────────────────────────────── */
+*{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
+html{height:100%;-webkit-text-size-adjust:100%;}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,sans-serif;background:#f6f6f7;color:#202223;height:100%;overflow:hidden;display:flex;flex-direction:column;}
+
+/* ─── BROWSER BAR ───────────────────────── */
+.browser-bar{background:#2c2c2c;padding:6px 12px;display:flex;align-items:center;gap:8px;flex-shrink:0;}
+.browser-tabs{display:flex;gap:3px;overflow:hidden;min-width:0;}
+.tab{background:#3a3a3a;color:#ccc;padding:5px 10px;border-radius:5px 5px 0 0;font-size:11px;display:flex;align-items:center;gap:5px;white-space:nowrap;max-width:160px;overflow:hidden;text-overflow:ellipsis;}
+.tab.active{background:#f6f6f7;color:#202223;}
+.tab-close{opacity:.5;font-size:9px;flex-shrink:0;}
+.address-bar{background:#fff;border-radius:20px;padding:3px 12px;font-size:11px;color:#555;flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+
+/* ─── SHOPIFY HEADER ────────────────────── */
+.shopify-header{background:#1a1a2e;padding:8px 14px;display:flex;align-items:center;justify-content:space-between;flex-shrink:0;gap:8px;}
+.shopify-logo{display:flex;align-items:center;gap:7px;color:#fff;font-size:13px;font-weight:600;flex-shrink:0;}
+.shopify-spring{font-size:10px;color:#aaa;}
+.shopify-search{background:#2a2a3e;border:1px solid #3a3a5e;border-radius:6px;padding:5px 10px;color:#ccc;font-size:11px;flex:1;max-width:260px;display:flex;align-items:center;gap:5px;}
+.shopify-header-right{display:flex;align-items:center;gap:10px;flex-shrink:0;}
+.shopify-icon-btn{background:none;border:none;cursor:pointer;color:#ccc;font-size:15px;padding:2px;}
+.profile-btn{background:#00a86b;border:none;cursor:pointer;color:#fff;font-size:11px;font-weight:700;width:30px;height:30px;border-radius:50%;display:flex;align-items:center;justify-content:center;flex-shrink:0;transition:box-shadow .2s;}
+.profile-btn:hover,.profile-btn:active{box-shadow:0 0 0 3px rgba(0,168,107,.4);}
+.profile-hint{display:none;}
+
+/* ─── MAIN LAYOUT ───────────────────────── */
+.main-layout{display:flex;flex:1;overflow:hidden;min-height:0;}
+.sidebar{width:200px;background:#1a1a2e;padding:10px 0;flex-shrink:0;overflow-y:auto;}
+.sidebar-item{display:flex;align-items:center;gap:8px;padding:8px 14px;color:#ccc;font-size:12px;cursor:pointer;transition:background .15s;}
+.sidebar-item:hover,.sidebar-item.active{background:#2a2a3e;color:#fff;}
+.sidebar-badge{background:#e44d36;color:#fff;font-size:10px;padding:1px 5px;border-radius:10px;margin-left:auto;}
+.sidebar-sub{padding:5px 14px 5px 38px;color:#888;font-size:11px;cursor:pointer;}
+.sidebar-sub:hover{color:#ccc;}
+.sidebar-divider{height:1px;background:#2a2a3e;margin:7px 0;}
+.content{flex:1;overflow-y:auto;padding:16px;min-width:0;}
+.breadcrumb{font-size:12px;color:#8c9196;margin-bottom:8px;}
+.order-row{display:flex;align-items:flex-start;gap:10px;margin-bottom:12px;flex-wrap:wrap;}
+.order-title{display:flex;align-items:center;gap:8px;flex-wrap:wrap;}
+.order-title h1{font-size:20px;font-weight:700;}
+.badge{padding:3px 8px;border-radius:100px;font-size:11px;font-weight:600;}
+.badge-yellow{background:#fff3c4;color:#916a00;}
+.badge-orange{background:#ffd79d;color:#7b4a00;}
+.order-meta{font-size:11px;color:#8c9196;margin-top:3px;}
+.order-actions{display:flex;gap:6px;margin-left:auto;flex-shrink:0;flex-wrap:wrap;}
+.btn{padding:6px 11px;border-radius:7px;border:1px solid #ccc;background:#fff;font-size:12px;cursor:pointer;font-weight:500;}
+.btn:hover{background:#f4f4f4;}
+.card{background:#fff;border-radius:10px;border:1px solid #e1e3e5;margin-bottom:12px;overflow:hidden;}
+.card-header{padding:11px 15px;display:flex;align-items:center;gap:7px;border-bottom:1px solid #f0f1f2;font-size:12px;font-weight:600;}
+.badge-unfulfilled{background:#fff3c4;color:#7b4a00;padding:2px 7px;border-radius:100px;font-size:11px;}
+.badge-pending{background:#ffd79d;color:#7b4a00;padding:2px 7px;border-radius:100px;font-size:11px;}
+.shipping-row{display:flex;align-items:center;gap:7px;font-size:12px;color:#555;padding:8px 15px;border-bottom:1px solid #f0f1f2;}
+.product-row{display:flex;align-items:center;gap:10px;padding:12px 15px;flex-wrap:wrap;}
+.product-img{width:40px;height:40px;border-radius:6px;background:#2a2a2a;display:flex;align-items:center;justify-content:center;color:#888;font-size:20px;flex-shrink:0;}
+.product-info{flex:1;min-width:90px;}
+.product-name{font-size:12px;font-weight:600;}
+.product-variant{font-size:11px;color:#8c9196;}
+.product-price{font-size:12px;color:#8c9196;text-decoration:line-through;}
+.product-final{font-size:12px;font-weight:600;}
+.product-qty{font-size:12px;color:#555;}
+.product-total{font-size:12px;font-weight:600;}
+.fulfill-btn{background:#008060;color:#fff;border:none;padding:7px 14px;border-radius:7px;font-size:12px;font-weight:600;cursor:pointer;display:flex;align-items:center;gap:5px;margin:0 15px 12px auto;}
+.warning-box{background:#fff3c4;border-left:4px solid #f0b429;padding:9px 13px;margin:0 15px 13px;border-radius:0 6px 6px 0;font-size:11px;color:#7b4a00;display:flex;gap:6px;}
+.summary-row{display:flex;justify-content:space-between;padding:5px 15px;font-size:12px;}
+.summary-row.total{font-weight:700;border-top:1px solid #f0f1f2;padding-top:9px;margin-top:3px;}
+.right-panel{width:230px;flex-shrink:0;padding:14px 12px;overflow-y:auto;background:#f6f6f7;border-left:1px solid #e1e3e5;}
+.panel-section{margin-bottom:15px;}
+.panel-title{font-size:12px;font-weight:600;margin-bottom:6px;display:flex;justify-content:space-between;align-items:center;}
+.panel-edit{color:#2c6ecb;font-size:11px;cursor:pointer;}
+.panel-text{font-size:11px;color:#555;line-height:1.6;}
+.tag-list{display:flex;flex-wrap:wrap;gap:4px;margin-top:5px;}
+.tag{background:#e4e5e7;color:#555;font-size:10px;padding:2px 6px;border-radius:4px;}
+
+/* ─── LOGIN MODAL ───────────────────────── */
+.modal-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.65);z-index:9000;align-items:flex-end;justify-content:center;padding:0;}
+.modal-overlay.active{display:flex;}
+@media(min-width:500px){.modal-overlay{align-items:center;padding:16px;}}
+.modal{background:#fff;border-radius:20px 20px 0 0;padding:24px 20px 32px;width:100%;max-width:400px;text-align:center;animation:slideUp .25s ease;}
+@media(min-width:500px){.modal{border-radius:18px;padding:28px 24px;}}
+@keyframes slideUp{from{transform:translateY(30px);opacity:0;}to{transform:none;opacity:1;}}
+.modal-handle{width:36px;height:4px;background:#e0e0e0;border-radius:2px;margin:0 auto 20px;}
+@media(min-width:500px){.modal-handle{display:none;}}
+.modal-icon{font-size:38px;margin-bottom:10px;}
+.modal h2{font-size:18px;font-weight:700;margin-bottom:5px;}
+.modal p{font-size:13px;color:#777;margin-bottom:18px;}
+.modal input{width:100%;padding:14px;border:2px solid #e1e3e5;border-radius:12px;font-size:24px;text-align:center;letter-spacing:10px;outline:none;transition:border-color .2s;font-weight:700;}
+.modal input:focus{border-color:#0095f6;}
+.modal-btn{margin-top:14px;width:100%;background:linear-gradient(135deg,#833ab4,#fd1d1d,#fcb045);color:#fff;border:none;padding:13px;border-radius:12px;font-size:15px;font-weight:700;cursor:pointer;}
+.modal-error{color:#e44d36;font-size:12px;margin-top:8px;display:none;}
+
+/* ─── DB BANNER ─────────────────────────── */
+.db-banner{display:none;position:fixed;top:0;left:0;right:0;background:#c0392b;color:#fff;padding:9px 14px;font-size:12px;font-weight:600;z-index:9999;text-align:center;line-height:1.5;}
+.db-banner.show{display:block;}
+
+/* ════════════════════════════════════════════
+   CHAT — Instagram DM Style
+════════════════════════════════════════════ */
+
+/* Backdrop — clicking outside closes chat */
+.chat-backdrop{display:none;position:fixed;inset:0;background:rgba(0,0,0,.0);z-index:800;}
+.chat-backdrop.active{display:block;}
+
+/* Panel */
+.chat-panel{
+  position:fixed;bottom:0;right:16px;
+  width:380px;
+  background:#fff;
+  border-radius:16px 16px 0 0;
+  box-shadow:0 -2px 0 rgba(0,0,0,.08),0 -8px 30px rgba(0,0,0,.12);
+  z-index:850;
+  display:none;flex-direction:column;
+  overflow:hidden;
+  /* max height = 80% of viewport */
+  max-height:80vh;
+}
+.chat-panel.active{display:flex;}
+
+/* On mobile, full screen */
+@media(max-width:600px){
+  .chat-panel{right:0;left:0;width:100%;border-radius:0;max-height:100dvh;height:100dvh;}
+}
+
+/* ── Header ── */
+.chat-header{
+  background:#fff;
+  border-bottom:1px solid #efefef;
+  padding:10px 14px;
+  display:flex;align-items:center;gap:10px;
+  flex-shrink:0;
+  position:relative;
+}
+.chat-back-btn{background:none;border:none;cursor:pointer;font-size:22px;padding:2px 6px 2px 0;color:#000;line-height:1;display:none;}
+@media(max-width:600px){.chat-back-btn{display:block;}}
+.chat-av-wrap{position:relative;flex-shrink:0;}
+.chat-av{width:40px;height:40px;border-radius:50%;background:linear-gradient(135deg,#833ab4,#fd1d1d,#fcb045);display:flex;align-items:center;justify-content:center;color:#fff;font-size:14px;font-weight:800;border:2px solid transparent;}
+.chat-av-ring{background:linear-gradient(#fff,#fff) padding-box,linear-gradient(135deg,#833ab4,#fd1d1d,#fcb045) border-box;border:2px solid transparent;border-radius:50%;}
+.av-status{position:absolute;bottom:1px;right:1px;width:11px;height:11px;border-radius:50%;border:2px solid #fff;background:#d1d5db;}
+.av-status.online{background:#22c55e;}
+.chat-header-info{flex:1;min-width:0;}
+.chat-header-name{font-size:14px;font-weight:700;color:#000;line-height:1.2;}
+.chat-header-sub{font-size:11px;color:#737373;margin-top:1px;}
+.chat-header-right{display:flex;align-items:center;gap:6px;flex-shrink:0;}
+.icoBtn{background:none;border:none;cursor:pointer;width:36px;height:36px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:18px;transition:background .15s;}
+.icoBtn:hover,.icoBtn:active{background:#f5f5f5;}
+.chat-user-pill{font-size:11px;font-weight:700;padding:3px 10px;border-radius:100px;border:1.5px solid;white-space:nowrap;}
+
+/* ── Online status bar ── */
+.online-bar{
+  background:#fafafa;border-bottom:1px solid #efefef;
+  padding:7px 16px;display:flex;align-items:center;gap:16px;flex-shrink:0;
+}
+.uc{display:flex;align-items:center;gap:5px;font-size:12px;font-weight:600;color:#262626;}
+.uc-dot{width:9px;height:9px;border-radius:50%;flex-shrink:0;background:#d1d5db;}
+.uc-dot.on{background:#22c55e;}
+
+/* ── Messages ── */
+.chat-body{
+  flex:1;overflow-y:auto;
+  padding:14px 14px 6px;
+  display:flex;flex-direction:column;gap:3px;
+  background:#fff;
+  min-height:0;
+  -webkit-overflow-scrolling:touch;
+  overscroll-behavior:contain;
+}
+.chat-body::-webkit-scrollbar{width:0;}
+
+.chat-empty{text-align:center;color:#737373;font-size:13px;margin:auto;padding:30px 20px;line-height:2;}
+.chat-empty span{font-size:40px;display:block;margin-bottom:8px;}
+
+/* Date divider */
+.date-div{text-align:center;margin:10px 0;flex-shrink:0;}
+.date-div span{font-size:11px;color:#737373;font-weight:500;}
+
+/* Message group */
+.mg{display:flex;flex-direction:column;margin-bottom:3px;}
+.mg.out{align-items:flex-end;}
+.mg.in{align-items:flex-start;}
+.mg-name{font-size:11px;color:#737373;font-weight:600;margin-bottom:2px;padding:0 12px;}
+
+/* Message row = bubble + action btn */
+.mr{display:flex;align-items:flex-end;gap:6px;position:relative;}
+.mg.out .mr{flex-direction:row-reverse;}
+
+/* IG-style react button that appears on hover/hold */
+.react-btn{
+  background:none;border:1.5px solid #dbdbdb;
+  border-radius:50%;width:28px;height:28px;
+  cursor:pointer;font-size:14px;
+  display:flex;align-items:center;justify-content:center;
+  opacity:0;transition:opacity .15s;flex-shrink:0;
+  background:#fff;
+}
+.mr:hover .react-btn{opacity:1;}
+
+/* Bubble */
+.bbl{
+  max-width:72%;
+  padding:10px 14px;
+  border-radius:22px;
+  font-size:14px;line-height:1.4;
+  word-break:break-word;
+  position:relative;
+  cursor:default;
+  user-select:text;
+  -webkit-user-select:text;
+}
+.bbl.out{background:#0095f6;color:#fff;}
+.bbl.in{background:#efefef;color:#262626;}
+
+/* Tail shaping */
+.mg .mr:first-of-type .bbl.out{border-bottom-right-radius:6px;}
+.mg .mr:first-of-type .bbl.in{border-bottom-left-radius:6px;}
+
+.bbl-txt{display:block;}
+.bbl-meta{display:flex;align-items:center;gap:4px;margin-top:4px;flex-wrap:wrap;}
+.bbl-time{font-size:10px;opacity:.6;}
+.bbl-tick{font-size:10px;opacity:.6;}
+.bbl-edited{font-size:10px;opacity:.55;font-style:italic;}
+
+/* Reactions row */
+.rx-bar{display:flex;flex-wrap:wrap;gap:4px;margin-top:4px;padding:0 2px;}
+.rx-chip{
+  background:#fff;border:1.5px solid #dbdbdb;
+  border-radius:100px;padding:3px 8px;
+  font-size:12px;cursor:pointer;
+  display:flex;align-items:center;gap:3px;
+  box-shadow:0 1px 3px rgba(0,0,0,.08);
+  transition:transform .1s,border-color .15s;
+  -webkit-user-select:none;user-select:none;
+  -webkit-touch-callout:none;
+}
+.rx-chip:active{transform:scale(.95);}
+.rx-chip.mine{border-color:#0095f6;background:#e8f0fe;}
+.rx-chip .rc{font-size:14px;}
+.rx-chip .rn{font-size:11px;font-weight:700;color:#555;}
+
+/* ── Typing ── */
+.typing-row{display:none;align-items:center;gap:8px;padding:4px 0;}
+.typing-row.on{display:flex;}
+.typing-bbl{background:#efefef;border-radius:22px;padding:10px 14px;display:flex;align-items:center;gap:3px;}
+.t-dot{width:6px;height:6px;border-radius:50%;background:#737373;animation:tdot 1.2s infinite;}
+.t-dot:nth-child(2){animation-delay:.2s;}
+.t-dot:nth-child(3){animation-delay:.4s;}
+@keyframes tdot{0%,80%,100%{transform:scale(.8);opacity:.6;}40%{transform:scale(1.1);opacity:1;}}
+.typing-label{font-size:12px;color:#737373;}
+
+/* ── Edit bar ── */
+.edit-bar{display:none;padding:8px 14px;background:#fff9f0;border-top:1.5px solid #f0b429;align-items:center;gap:8px;flex-shrink:0;}
+.edit-bar.on{display:flex;}
+.edit-bar-txt{font-size:12px;color:#92400e;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.edit-cancel{background:none;border:none;cursor:pointer;font-size:18px;color:#92400e;padding:0 4px;line-height:1;}
+
+/* ── Footer ── */
+.chat-footer{
+  padding:8px 12px;
+  border-top:1px solid #efefef;
+  display:flex;gap:8px;align-items:flex-end;
+  background:#fff;flex-shrink:0;
+  padding-bottom:max(8px, env(safe-area-inset-bottom));
+}
+.chat-input{
+  flex:1;border:1.5px solid #dbdbdb;
+  border-radius:22px;padding:9px 16px;
+  font-size:14px;resize:none;outline:none;
+  max-height:100px;font-family:inherit;
+  transition:border-color .2s;
+  line-height:1.4;
+  background:#fafafa;
+  -webkit-appearance:none;
+}
+.chat-input:focus{border-color:#0095f6;background:#fff;}
+.send-btn{
+  background:#0095f6;color:#fff;border:none;
+  border-radius:50%;width:40px;height:40px;
+  cursor:pointer;font-size:16px;flex-shrink:0;
+  display:flex;align-items:center;justify-content:center;
+  transition:opacity .15s,transform .1s;
+  -webkit-appearance:none;
+}
+.send-btn:active{opacity:.8;transform:scale(.94);}
+.send-btn:disabled{opacity:.4;cursor:not-allowed;}
+
+/* ── Reaction Picker ── */
+.rx-picker{
+  position:fixed;
+  background:#fff;
+  border:1px solid #efefef;
+  border-radius:56px;
+  padding:8px 12px;
+  display:flex;gap:4px;
+  box-shadow:0 4px 20px rgba(0,0,0,.18),0 1px 4px rgba(0,0,0,.08);
+  z-index:9800;
+  animation:popUp .18s cubic-bezier(.175,.885,.32,1.275);
+  touch-action:none;
+}
+@keyframes popUp{from{opacity:0;transform:scale(.6) translateY(8px);}to{opacity:1;transform:none;}}
+.rx-picker button{
+  background:none;border:none;cursor:pointer;
+  font-size:24px;line-height:1;padding:4px;
+  border-radius:50%;transition:transform .12s;
+  -webkit-user-select:none;user-select:none;
+}
+.rx-picker button:hover,.rx-picker button:active{transform:scale(1.35);}
+
+/* ── Context Menu ── */
+.ctx-menu{
+  position:fixed;
+  background:#fff;
+  border-radius:14px;
+  overflow:hidden;
+  min-width:180px;
+  box-shadow:0 4px 24px rgba(0,0,0,.18),0 1px 6px rgba(0,0,0,.08);
+  z-index:9700;
+  animation:popUp .15s ease;
+}
+.ctx-item{
+  display:flex;align-items:center;gap:10px;
+  padding:13px 18px;font-size:14px;cursor:pointer;color:#262626;
+  transition:background .1s;
+  -webkit-user-select:none;user-select:none;
+  border-bottom:1px solid #f5f5f5;
+}
+.ctx-item:last-child{border-bottom:none;}
+.ctx-item:active{background:#f5f5f5;}
+.ctx-item.danger{color:#ed4956;}
+.ctx-i{font-size:17px;width:24px;text-align:center;}
+
+/* Dim overlay under menus */
+.menu-dim{display:none;position:fixed;inset:0;background:rgba(0,0,0,.4);z-index:9600;touch-action:none;}
+.menu-dim.on{display:block;}
+
+/* ── Pill ── */
+.chat-pill{
+  display:none;position:fixed;bottom:20px;right:16px;
+  background:linear-gradient(135deg,#833ab4,#fd1d1d,#fcb045);
+  color:#fff;padding:10px 16px;border-radius:100px;
+  font-size:13px;font-weight:700;cursor:pointer;
+  box-shadow:0 4px 16px rgba(131,58,180,.4);z-index:800;
+  align-items:center;gap:8px;
+  -webkit-user-select:none;user-select:none;
+}
+.chat-pill.on{display:flex;}
+@media(max-width:600px){.chat-pill{bottom:16px;right:12px;}}
+.pill-dot{width:8px;height:8px;background:#fff;border-radius:50%;animation:pls 1.4s infinite;}
+@keyframes pls{0%,100%{opacity:1;transform:scale(1);}50%{opacity:.3;transform:scale(.8);}}
+.unread-badge{background:#fff;color:#ed4956;font-size:11px;font-weight:800;padding:1px 6px;border-radius:100px;min-width:20px;text-align:center;}
+
+/* ─── RESPONSIVE ────────────────────────── */
+@media(max-width:600px){
+  .browser-bar,.right-panel{display:none;}
+  .sidebar{display:none;}
+  .shopify-search{max-width:130px;}
+  .order-actions .btn:nth-child(n+3){display:none;}
+  .content{padding:10px;}
+}
+@media(max-width:900px){
+  .sidebar{width:44px;}
+  .sidebar-item>span:not(.sidebar-badge){display:none;}
+  .sidebar-sub,.sidebar-divider + .sidebar-item + .sidebar-item ~ .sidebar-item{display:none;}
+  .sidebar-sub{display:none;}
+}
+@media(max-width:900px) and (min-width:601px){
+  .right-panel{display:none;}
+}
+</style>
+</head>
+<body>
+
+<div class="db-banner" id="dbBanner"></div>
+
+<!-- BROWSER BAR -->
+<div class="browser-bar">
+  <div class="browser-tabs">
+    <div class="tab active">🛒 EJAA · Orders · #5837 <span class="tab-close">✕</span></div>
+    <div class="tab">💬 WhatsApp <span class="tab-close">✕</span></div>
+  </div>
+  <div class="address-bar">🔒 https://admin.shopify.com/store/ejaastore/orders/7303512555798</div>
+</div>
+
+<!-- SHOPIFY HEADER -->
+<div class="shopify-header">
+  <div class="shopify-logo">
+    <svg width="24" height="24" viewBox="0 0 28 28"><rect width="28" height="28" rx="6" fill="#96bf48"/><text x="5" y="21" font-size="18" fill="#fff">S</text></svg>
+    shopify <span class="shopify-spring">Spring '26</span>
+  </div>
+  <div class="shopify-search">
+    <span>🔍</span><span style="opacity:.5">Search</span>
+    <span style="margin-left:auto;background:#3a3a5e;padding:1px 6px;border-radius:4px;font-size:10px;color:#aaa">⌘K</span>
+  </div>
+  <div class="shopify-header-right">
+    <button class="shopify-icon-btn">🔔</button>
+    <button class="shopify-icon-btn">⚙️</button>
+    <button class="profile-btn" id="profileBtn">EJ</button>
+  </div>
+</div>
+
+<div class="main-layout">
+  <!-- SIDEBAR -->
+  <div class="sidebar">
+    <div class="sidebar-item active">🏠<span>Home</span></div>
+    <div class="sidebar-item">📦<span>Orders</span><span class="sidebar-badge">2,889</span></div>
+    <div class="sidebar-sub">Drafts</div>
+    <div class="sidebar-sub">Abandoned checkouts</div>
+    <div class="sidebar-item">📌<span>Products</span></div>
+    <div class="sidebar-item">👤<span>Customers</span></div>
+    <div class="sidebar-item">📈<span>Growth</span></div>
+    <div class="sidebar-item">🏷️<span>Discounts</span></div>
+    <div class="sidebar-item">📊<span>Analytics</span></div>
+    <div class="sidebar-divider"></div>
+    <div class="sidebar-item">🛍️<span>Online Store</span></div>
+    <div class="sidebar-divider"></div>
+    <div class="sidebar-item">⚙️<span>Settings</span></div>
+  </div>
+
+  <!-- CONTENT -->
+  <div class="content">
+    <div class="breadcrumb">📋 › Orders</div>
+    <div class="order-row">
+      <div>
+        <div class="order-title">
+          <h1>#5837</h1>
+          <span class="badge badge-yellow">⏳ Payment pending</span>
+          <span class="badge badge-orange">📦 Unfulfilled</span>
+        </div>
+        <div class="order-meta">June 18, 2026 at 12:05 am from 1CCO (via import)</div>
+      </div>
+      <div class="order-actions">
+        <button class="btn">Restock</button>
+        <button class="btn">Edit</button>
+        <button class="btn">Print ▾</button>
+        <button class="btn">More ▾</button>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-header"><span>📦</span><span class="badge-unfulfilled">Unfulfilled</span></div>
+      <div class="shipping-row">🚚 Standard Shipping</div>
+      <div class="product-row">
+        <div class="product-img">💍</div>
+        <div class="product-info">
+          <div class="product-name">Saanjh Silver Tilhari</div>
+          <div class="product-variant">Oxidised (Black) · TH-2</div>
+        </div>
+        <span class="product-price">₹4,500.00</span>&nbsp;
+        <span class="product-final">₹4,050.00</span>&nbsp;
+        <span class="product-qty">× 1</span>&nbsp;
+        <span class="product-total">₹4,050.00</span>
+      </div>
+      <div style="display:flex;justify-content:flex-end;padding:0 15px 12px;">
+        <button class="fulfill-btn">Mark as fulfilled ▾</button>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-header"><span>⏳</span><span class="badge-pending">Payment pending</span><span style="margin-left:auto;color:#888">···</span></div>
+      <div class="warning-box">⚠️ COD is still processing. Wait for payment before fulfilling.</div>
+      <div class="summary-row"><span>Subtotal</span><span>1 item · ₹4,050.00</span></div>
+      <div class="summary-row"><span>Shipping</span><span>Standard · ₹0.00</span></div>
+      <div class="summary-row total"><span>Total</span><span>₹4,050.00</span></div>
+      <div class="summary-row"><span>Paid</span><span>₹0.00</span></div>
+      <div class="summary-row"><span>Balance</span><span style="color:#e44d36;font-weight:600">₹4,050.00</span></div>
+    </div>
+  </div>
+
+  <!-- RIGHT PANEL -->
+  <div class="right-panel">
+    <div class="panel-section">
+      <div class="panel-title">Notes <span class="panel-edit">✏️</span></div>
+      <div class="panel-text" style="color:#aaa;font-style:italic">No notes from customer</div>
+    </div>
+    <div class="panel-section">
+      <div class="panel-title">Details <span class="panel-edit">✏️</span></div>
+      <div class="panel-text"><b>fbclid</b><br>PAZXh0bgNh...<br><br><b>utm_medium</b><br>Open+(FB+Insta)<br><br><b>cart_token</b><br>hWND7rKg...</div>
+    </div>
+    <div class="panel-section">
+      <div class="panel-title">Tags</div>
+      <div class="tag-list">
+        <div class="tag">COD</div><div class="tag">1CCO</div>
+        <div class="tag">CBO+Insta</div><div class="tag">All+Product</div>
+        <div class="tag">Copy</div><div class="tag">utm_campaign</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- LOGIN MODAL -->
+<div class="modal-overlay" id="modal">
+  <div class="modal">
+    <div class="modal-handle"></div>
+    <div class="modal-icon">🔐</div>
+    <h2>EJAA Secure Panel</h2>
+    <p>Enter your 4-digit access code</p>
+    <input type="password" id="codeInput" maxlength="4" placeholder="••••" autocomplete="off" inputmode="numeric"/>
+    <div class="modal-error" id="modalError">❌ Wrong code. Try again.</div>
+    <button class="modal-btn" id="loginBtn">Continue →</button>
+  </div>
+</div>
+
+<!-- CHAT BACKDROP (click outside = close) -->
+<div class="chat-backdrop" id="chatBackdrop"></div>
+
+<!-- CHAT PANEL -->
+<div class="chat-panel" id="chatPanel">
+
+  <!-- Header -->
+  <div class="chat-header">
+    <button class="chat-back-btn" id="backBtn">‹</button>
+    <div class="chat-av-wrap">
+      <div class="chat-av chat-av-ring" id="chatAv">💬</div>
+      <div class="av-status" id="otherStatus"></div>
+    </div>
+    <div class="chat-header-info">
+      <div class="chat-header-name" id="chatHeaderName">AKChat</div>
+      <div class="chat-header-sub" id="chatHeaderSub">Tap profile to open</div>
+    </div>
+    <div class="chat-header-right">
+      <span class="chat-user-pill" id="chatUserPill"></span>
+      <button class="icoBtn" id="minBtn">—</button>
+    </div>
+  </div>
+
+  <!-- Online bar -->
+  <div class="online-bar">
+    <div class="uc"><div class="uc-dot" id="dAku"></div>Aku</div>
+    <div style="width:1px;height:12px;background:#dbdbdb"></div>
+    <div class="uc"><div class="uc-dot" id="dBillu"></div>Billu</div>
+  </div>
+
+  <!-- Messages -->
+  <div class="chat-body" id="chatBody">
+    <div class="chat-empty" id="chatEmpty">
+      <span>👋</span>
+      No messages yet.<br>Say hello!
+    </div>
+    <div class="typing-row" id="typingRow">
+      <div class="typing-bbl"><div class="t-dot"></div><div class="t-dot"></div><div class="t-dot"></div></div>
+      <span class="typing-label" id="typingLabel"></span>
+    </div>
+  </div>
+
+  <!-- Edit bar -->
+  <div class="edit-bar" id="editBar">
+    <span style="font-size:14px">✏️</span>
+    <span class="edit-bar-txt" id="editBarTxt">Editing…</span>
+    <button class="edit-cancel" id="editCancel">✕</button>
+  </div>
+
+  <!-- Footer -->
+  <div class="chat-footer">
+    <textarea class="chat-input" id="chatInput" rows="1" placeholder="Message…"></textarea>
+    <button class="send-btn" id="sendBtn">➤</button>
+  </div>
+</div>
+
+<!-- PILL -->
+<div class="chat-pill" id="chatPill">
+  <div class="pill-dot"></div>
+  <span>AKChat</span>
+  <span class="unread-badge" id="unreadBadge" style="display:none">0</span>
+</div>
+
+<!-- Menu dim overlay -->
+<div class="menu-dim" id="menuDim"></div>
+
+<script>
+/* ═══════════════════════════════════════════
+   FIREBASE
+═══════════════════════════════════════════ */
+const FC={
+  apiKey:"AIzaSyDycrAmK2ObcbcT-L8ord5PDXgKVxonqcw",
+  authDomain:"akchat-fa72d.firebaseapp.com",
+  databaseURL:"https://akchat-fa72d-default-rtdb.firebaseio.com",
+  projectId:"akchat-fa72d",
+  storageBucket:"akchat-fa72d.firebasestorage.app",
+  messagingSenderId:"224246768048",
+  appId:"1:224246768048:web:8a10894cce436de8e2b675"
+};
+firebase.initializeApp(FC);
+const db=firebase.database();
+
+/* ═══════════════════════════════════════════
+   CONFIG
+═══════════════════════════════════════════ */
+const CODES={"2006":"Aku","2008":"Billu"};
+const USER_COLORS={
+  Aku:{bg:"#dcfce7",border:"#16a34a",text:"#15803d"},
+  Billu:{bg:"#dbeafe",border:"#2563eb",text:"#1d4ed8"}
+};
+const EMOJIS=["❤️","😂","😮","😢","👍","🔥"];
+
+/* ═══════════════════════════════════════════
+   STATE
+═══════════════════════════════════════════ */
+let me=null,chatOpen=false,listening=false;
+let typingTimer=null,firstLoad=true;
+let editKey=null,unread=0;
+let msgMap={}; // key→{wrap,bbl,rxBar,data}
+let lastDate="";
+
+/* ═══════════════════════════════════════════
+   DOM
+═══════════════════════════════════════════ */
+const $=id=>document.getElementById(id);
+const modal=$("modal"),codeInput=$("codeInput"),loginBtn=$("loginBtn"),modalError=$("modalError");
+const chatPanel=$("chatPanel"),chatBody=$("chatBody"),chatEmpty=$("chatEmpty");
+const chatInput=$("chatInput"),sendBtn=$("sendBtn");
+const chatPill=$("chatPill"),minBtn=$("minBtn"),backBtn=$("backBtn");
+const chatUserPill=$("chatUserPill"),chatHeaderName=$("chatHeaderName"),chatHeaderSub=$("chatHeaderSub");
+const chatAv=$("chatAv"),otherStatus=$("otherStatus");
+const typingRow=$("typingRow"),typingLabel=$("typingLabel");
+const unreadBadge=$("unreadBadge"),dbBanner=$("dbBanner");
+const editBar=$("editBar"),editBarTxt=$("editBarTxt"),editCancel=$("editCancel");
+const chatBackdrop=$("chatBackdrop"),menuDim=$("menuDim");
+const dAku=$("dAku"),dBillu=$("dBillu");
+const profileBtn=$("profileBtn");
+
+/* ═══════════════════════════════════════════
+   BANNER
+═══════════════════════════════════════════ */
+function showBanner(m){dbBanner.textContent=m;dbBanner.classList.add("show");}
+function hideBanner(){dbBanner.classList.remove("show");}
+
+/* ═══════════════════════════════════════════
+   LOGIN
+═══════════════════════════════════════════ */
+profileBtn.addEventListener("click",()=>{
+  if(me){openChat();return;}
+  modal.classList.add("active");
+  setTimeout(()=>codeInput.focus(),100);
+});
+modal.addEventListener("click",e=>{if(e.target===modal)closeModal();});
+
+function closeModal(){
+  modal.classList.remove("active");
+  codeInput.value="";
+  modalError.style.display="none";
+}
+
+function doLogin(){
+  const code=codeInput.value.trim();
+  const user=CODES[code];
+  if(!user){modalError.style.display="block";codeInput.value="";codeInput.focus();return;}
+  me=user;
+  closeModal();
+
+  // style pill
+  const c=USER_COLORS[me];
+  chatUserPill.textContent=me;
+  chatUserPill.style.background=c.bg;
+  chatUserPill.style.borderColor=c.border;
+  chatUserPill.style.color=c.text;
+
+  chatHeaderName.textContent="AKChat";
+  chatHeaderSub.textContent="Active now";
+
+  openChat();
+  if(!listening){listening=true;startListening();}
+  setOnline(true);
+}
+
+loginBtn.addEventListener("click",doLogin);
+codeInput.addEventListener("keydown",e=>{if(e.key==="Enter")doLogin();});
+
+/* ═══════════════════════════════════════════
+   OPEN / CLOSE CHAT
+═══════════════════════════════════════════ */
+function openChat(){
+  chatPanel.classList.add("active");
+  chatBackdrop.classList.add("active");
+  chatPill.classList.remove("on");
+  chatOpen=true;
+  unread=0;unreadBadge.style.display="none";
+  scrollBottom();
+}
+
+function closeChat(){
+  chatPanel.classList.remove("active");
+  chatBackdrop.classList.remove("active");
+  chatOpen=false;
+  if(me) chatPill.classList.add("on");
+}
+
+// Clicking backdrop = close
+chatBackdrop.addEventListener("click",closeChat);
+// Back button (mobile)
+backBtn.addEventListener("click",closeChat);
+// Minimise button
+minBtn.addEventListener("click",e=>{e.stopPropagation();closeChat();});
+// Pill = open
+chatPill.addEventListener("click",openChat);
+
+/* ═══════════════════════════════════════════
+   PRESENCE
+═══════════════════════════════════════════ */
+function setOnline(on){
+  if(!me)return;
+  const ref=db.ref("akchat/online/"+me);
+  if(on){ref.set(true).catch(()=>{});ref.onDisconnect().remove();}
+  else{ref.remove().catch(()=>{});}
+}
+
+function listenPresence(){
+  const other=u=>u==="Aku"?dAku:dBillu;
+  ["Aku","Billu"].forEach(u=>{
+    db.ref("akchat/online/"+u).on("value",snap=>{
+      const dot=other(u);
+      dot.className="uc-dot"+(snap.val()?" on":"");
+      // update header if this is the other user
+      if(me && u!==me){
+        otherStatus.className="av-status"+(snap.val()?" online":"");
+        chatHeaderSub.textContent=snap.val()?"Active now":"Offline";
+      }
+    });
+  });
+}
+listenPresence();
+
+window.addEventListener("beforeunload",()=>{setOnline(false);stopTyping();});
+window.addEventListener("pagehide",()=>{setOnline(false);stopTyping();});
+
+/* ═══════════════════════════════════════════
+   SEND / EDIT MESSAGE
+═══════════════════════════════════════════ */
+function sendMessage(){
+  const text=chatInput.value.trim();
+  if(!text||!me)return;
+  sendBtn.disabled=true;
+
+  if(editKey){
+    db.ref("akchat/messages/"+editKey).update({text,edited:true})
+      .then(()=>{cancelEdit();hideBanner();})
+      .catch(e=>showBanner("Edit failed: "+e.code))
+      .finally(()=>sendBtn.disabled=false);
+    return;
+  }
+
+  db.ref("akchat/messages").push({
+    text,sender:me,
+    ts:firebase.database.ServerValue.TIMESTAMP
+  }).then(()=>{
+    chatInput.value="";chatInput.style.height="auto";
+    stopTyping();hideBanner();
+  }).catch(e=>showBanner("Send failed ("+e.code+"): Firebase → Realtime DB → Rules → set read+write to true"))
+   .finally(()=>sendBtn.disabled=false);
+}
+
+sendBtn.addEventListener("click",sendMessage);
+chatInput.addEventListener("keydown",e=>{
+  if(e.key==="Enter"&&!e.shiftKey){e.preventDefault();sendMessage();}
+});
+chatInput.addEventListener("input",()=>{
+  chatInput.style.height="auto";
+  chatInput.style.height=Math.min(chatInput.scrollHeight,100)+"px";
+  startTyping();
+});
+
+/* ═══════════════════════════════════════════
+   TYPING
+═══════════════════════════════════════════ */
+function startTyping(){
+  if(!me)return;
+  db.ref("akchat/typing/"+me).set(true).catch(()=>{});
+  clearTimeout(typingTimer);
+  typingTimer=setTimeout(stopTyping,2500);
+}
+function stopTyping(){
+  if(!me)return;
+  db.ref("akchat/typing/"+me).remove().catch(()=>{});
+}
+
+/* ═══════════════════════════════════════════
+   EDIT HELPERS
+═══════════════════════════════════════════ */
+function startEdit(key,text){
+  editKey=key;
+  chatInput.value=text;
+  chatInput.style.height="auto";
+  chatInput.style.height=Math.min(chatInput.scrollHeight,100)+"px";
+  editBarTxt.textContent="Editing: "+text.slice(0,40)+(text.length>40?"…":"");
+  editBar.classList.add("on");
+  chatInput.focus();
+}
+function cancelEdit(){
+  editKey=null;
+  chatInput.value="";
+  chatInput.style.height="auto";
+  editBar.classList.remove("on");
+}
+editCancel.addEventListener("click",cancelEdit);
+
+/* ═══════════════════════════════════════════
+   REACTIONS
+═══════════════════════════════════════════ */
+let activePicker=null;
+
+function closePicker(){
+  if(activePicker){activePicker.remove();activePicker=null;}
+}
+
+function showPicker(key,anchorEl){
+  closePicker();closeCtx();
+  const rect=anchorEl.getBoundingClientRect();
+  const picker=document.createElement("div");
+  picker.className="rx-picker";
+  EMOJIS.forEach(em=>{
+    const btn=document.createElement("button");
+    btn.textContent=em;
+    btn.addEventListener("pointerup",e=>{
+      e.stopPropagation();
+      toggleReaction(key,em);
+      closePicker();hideMenuDim();
+    });
+    picker.appendChild(btn);
+  });
+
+  // position: above anchor
+  document.body.appendChild(picker);
+  const pw=picker.offsetWidth,ph=picker.offsetHeight;
+  let top=rect.top-ph-10;
+  let left=rect.left;
+  if(top<8)top=rect.bottom+10;
+  if(left+pw>window.innerWidth-8)left=window.innerWidth-pw-8;
+  if(left<8)left=8;
+  picker.style.top=top+"px";
+  picker.style.left=left+"px";
+  activePicker=picker;
+  showMenuDim();
+}
+
+function toggleReaction(key,emoji){
+  if(!me)return;
+  const path="akchat/reactions/"+key+"/"+emoji+"/"+me;
+  db.ref(path).once("value").then(snap=>{
+    if(snap.val())db.ref(path).remove().catch(()=>{});
+    else db.ref(path).set(true).catch(()=>{});
+  });
+}
+
+/* ═══════════════════════════════════════════
+   CONTEXT MENU
+═══════════════════════════════════════════ */
+let activeCtx=null;
+
+function closeCtx(){
+  if(activeCtx){activeCtx.remove();activeCtx=null;}
+}
+
+function showCtx(key,data,x,y){
+  closeCtx();closePicker();
+  const isMine=data.sender===me;
+  const menu=document.createElement("div");
+  menu.className="ctx-menu";
+
+  const items=[
+    {icon:"😄",label:"React",fn:()=>{const b=msgMap[key]?.bbl;if(b)showPicker(key,b);}},
+    {icon:"📋",label:"Copy",fn:()=>{try{navigator.clipboard.writeText(data.text);}catch(e){}}},
+  ];
+  if(isMine){
+    items.splice(1,0,{icon:"✏️",label:"Edit",fn:()=>startEdit(key,data.text)});
+    items.push({icon:"🗑️",label:"Delete",fn:()=>deleteMsg(key),danger:true});
+  }
+
+  items.forEach(item=>{
+    const el=document.createElement("div");
+    el.className="ctx-item"+(item.danger?" danger":"");
+    el.innerHTML=`<span class="ctx-i">${item.icon}</span><span>${item.label}</span>`;
+    el.addEventListener("pointerup",e=>{
+      e.stopPropagation();
+      closeCtx();hideMenuDim();
+      item.fn();
+    });
+    menu.appendChild(el);
+  });
+
+  document.body.appendChild(menu);
+  const mw=menu.offsetWidth,mh=menu.offsetHeight;
+  let cx=x,cy=y;
+  if(cx+mw>window.innerWidth-8)cx=window.innerWidth-mw-8;
+  if(cy+mh>window.innerHeight-8)cy=y-mh;
+  if(cy<8)cy=8;
+  if(cx<8)cx=8;
+  menu.style.left=cx+"px";menu.style.top=cy+"px";
+  activeCtx=menu;
+  showMenuDim();
+}
+
+function deleteMsg(key){
+  db.ref("akchat/messages/"+key).remove()
+    .catch(e=>showBanner("Delete failed: "+e.code));
+}
+
+/* ═══════════════════════════════════════════
+   DIM OVERLAY
+═══════════════════════════════════════════ */
+function showMenuDim(){menuDim.classList.add("on");}
+function hideMenuDim(){menuDim.classList.remove("on");}
+
+menuDim.addEventListener("pointerup",()=>{
+  closeCtx();closePicker();hideMenuDim();
+});
+
+/* ═══════════════════════════════════════════
+   FIREBASE LISTENERS
+═══════════════════════════════════════════ */
+function startListening(){
+  // New messages
+  db.ref("akchat/messages").on("child_added",snap=>{
+    const d=snap.val();if(!d)return;
+    const key=snap.key;
+    chatEmpty.style.display="none";
+    renderMsg(key,d);
+    if(!firstLoad&&d.sender!==me&&!chatOpen){
+      unread++;unreadBadge.style.display="inline-block";unreadBadge.textContent=unread;
+    }
+    scrollBottom();
+  },err=>showBanner("Firebase blocked ("+err.code+"): Set read & write = true in Firebase Console → Realtime DB → Rules"));
+
+  // Edits
+  db.ref("akchat/messages").on("child_changed",snap=>{
+    const d=snap.val(),key=snap.key;
+    if(!d||!msgMap[key])return;
+    const node=msgMap[key];
+    node.data=d;
+    const txtEl=node.bbl.querySelector(".bbl-txt");
+    if(txtEl)txtEl.textContent=d.text;
+    const edEl=node.bbl.querySelector(".bbl-edited");
+    if(edEl)edEl.style.display=d.edited?"inline":"none";
+  });
+
+  // Deletes
+  db.ref("akchat/messages").on("child_removed",snap=>{
+    const key=snap.key;
+    if(msgMap[key]){msgMap[key].wrap.remove();delete msgMap[key];}
+  });
+
+  // Typing indicator
+  const other=me==="Aku"?"Billu":"Aku";
+  db.ref("akchat/typing/"+other).on("value",snap=>{
+    if(snap.val()){
+      typingLabel.textContent=other+" is typing…";
+      typingRow.classList.add("on");
+    }else{
+      typingRow.classList.remove("on");
+    }
+    scrollBottom();
+  });
+
+  // Reactions
+  db.ref("akchat/reactions").on("value",snap=>{
+    const all=snap.val()||{};
+    Object.keys(msgMap).forEach(key=>{
+      updateRxUI(key,all[key]||{});
+    });
+  });
+
+  setTimeout(()=>firstLoad=false,2000);
+}
+
+/* ═══════════════════════════════════════════
+   RENDER MESSAGE
+═══════════════════════════════════════════ */
+function renderMsg(key,d){
+  const isOut=d.sender===me;
+
+  // Date divider
+  const dateStr=d.ts?new Date(d.ts).toLocaleDateString([],{weekday:"short",month:"short",day:"numeric"}):"";
+  if(dateStr&&dateStr!==lastDate){
+    lastDate=dateStr;
+    const div=document.createElement("div");div.className="date-div";
+    div.innerHTML="<span>"+dateStr+"</span>";
+    chatBody.insertBefore(div,typingRow);
+  }
+
+  const group=document.createElement("div");
+  group.className="mg "+(isOut?"out":"in");
+
+  // Sender name (for incoming)
+  if(!isOut){
+    const nm=document.createElement("div");nm.className="mg-name";nm.textContent=d.sender;
+    group.appendChild(nm);
+  }
+
+  // Row = react-btn + bubble
+  const row=document.createElement("div");row.className="mr";
+
+  // React button (IG heart-like)
+  const rBtn=document.createElement("button");rBtn.className="react-btn";rBtn.textContent="♡";
+  rBtn.addEventListener("click",e=>{e.stopPropagation();showPicker(key,bbl);});
+
+  // Bubble
+  const bbl=document.createElement("div");bbl.className="bbl "+(isOut?"out":"in");
+
+  const txtEl=document.createElement("span");txtEl.className="bbl-txt";txtEl.textContent=d.text;
+  bbl.appendChild(txtEl);
+
+  const meta=document.createElement("div");meta.className="bbl-meta";
+  const timeEl=document.createElement("span");timeEl.className="bbl-time";
+  timeEl.textContent=d.ts?new Date(d.ts).toLocaleTimeString([],{hour:"2-digit",minute:"2-digit"}):"";
+  meta.appendChild(timeEl);
+  if(isOut){const tick=document.createElement("span");tick.className="bbl-tick";tick.textContent="✓✓";meta.appendChild(tick);}
+  const edEl=document.createElement("span");edEl.className="bbl-edited";edEl.textContent="edited";edEl.style.display=d.edited?"inline":"none";
+  meta.appendChild(edEl);
+  bbl.appendChild(meta);
+
+  if(isOut){row.appendChild(rBtn);row.appendChild(bbl);}
+  else{row.appendChild(bbl);row.appendChild(rBtn);}
+  group.appendChild(row);
+
+  // Reactions bar
+  const rxBar=document.createElement("div");rxBar.className="rx-bar";
+  group.appendChild(rxBar);
+
+  chatBody.insertBefore(group,typingRow);
+  msgMap[key]={wrap:group,bbl,rxBar,data:d};
+
+  /* ── Touch / Mouse interactions ── */
+  let lpTimer=null,lpFired=false,startX=0,startY=0;
+
+  // Long press (Android & iOS)
+  bbl.addEventListener("touchstart",e=>{
+    lpFired=false;
+    startX=e.touches[0].clientX;
+    startY=e.touches[0].clientY;
+    lpTimer=setTimeout(()=>{
+      lpFired=true;
+      navigator.vibrate&&navigator.vibrate(40);
+      showCtx(key,d,startX,startY);
+    },500);
+  },{passive:true});
+
+  bbl.addEventListener("touchmove",e=>{
+    const dx=Math.abs(e.touches[0].clientX-startX);
+    const dy=Math.abs(e.touches[0].clientY-startY);
+    if(dx>10||dy>10){clearTimeout(lpTimer);}
+  },{passive:true});
+
+  bbl.addEventListener("touchend",e=>{
+    clearTimeout(lpTimer);
+    // prevent ghost click if long press fired
+    if(lpFired){e.preventDefault();}
+  });
+
+  // Right-click (desktop)
+  bbl.addEventListener("contextmenu",e=>{
+    e.preventDefault();e.stopPropagation();
+    showCtx(key,d,e.clientX,e.clientY);
+  });
+
+  // Hover react button (desktop)
+  bbl.addEventListener("mouseenter",()=>{rBtn.style.opacity="1";});
+  bbl.addEventListener("mouseleave",()=>{rBtn.style.opacity="";});
+}
+
+/* ═══════════════════════════════════════════
+   REACTIONS UI
+═══════════════════════════════════════════ */
+function updateRxUI(key,rxData){
+  if(!msgMap[key])return;
+  const{rxBar}=msgMap[key];
+  rxBar.innerHTML="";
+  const totals={},mine=new Set();
+  Object.entries(rxData).forEach(([em,users])=>{
+    const c=Object.keys(users).length;
+    if(c>0){totals[em]=c;if(me&&users[me])mine.add(em);}
+  });
+  Object.entries(totals).forEach(([em,cnt])=>{
+    const chip=document.createElement("div");
+    chip.className="rx-chip"+(mine.has(em)?" mine":"");
+    chip.innerHTML=`<span class="rc">${em}</span><span class="rn">${cnt}</span>`;
+    chip.addEventListener("click",e=>{e.stopPropagation();toggleReaction(key,em);});
+    rxBar.appendChild(chip);
+  });
+}
+
+/* ═══════════════════════════════════════════
+   SCROLL
+═══════════════════════════════════════════ */
+function scrollBottom(){
+  requestAnimationFrame(()=>{chatBody.scrollTop=chatBody.scrollHeight;});
+}
+
+/* ═══════════════════════════════════════════
+   KEYBOARD AVOIDANCE (Android)
+═══════════════════════════════════════════ */
+if(window.visualViewport){
+  window.visualViewport.addEventListener("resize",()=>{
+    if(!chatOpen)return;
+    const offset=window.innerHeight-window.visualViewport.height;
+    chatPanel.style.bottom=offset+"px";
+  });
+}
+
+/* ═══════════════════════════════════════════
+   GLOBAL DISMISS (Escape)
+═══════════════════════════════════════════ */
+document.addEventListener("keydown",e=>{
+  if(e.key==="Escape"){closeModal();closePicker();closeCtx();hideMenuDim();}
+});
+</script>
+</body>
+</html>
