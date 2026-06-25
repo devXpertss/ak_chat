@@ -331,6 +331,69 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,sa
 .img-btn:hover,.img-btn:active,.emoji-btn:hover,.emoji-btn:active{background:#f5e8ec;border-color:#800020;color:#800020;}
 #imgFileInput{display:none;}
 
+/* ── Voice button ── */
+.mic-btn{
+  background:none;border:1.5px solid #dbdbdb;border-radius:50%;
+  width:40px;height:40px;cursor:pointer;font-size:18px;
+  display:flex;align-items:center;justify-content:center;
+  flex-shrink:0;transition:background .15s,border-color .15s,transform .1s;
+  color:#555;-webkit-user-select:none;user-select:none;
+  touch-action:none;
+}
+.mic-btn:hover{background:#f5e8ec;border-color:#800020;color:#800020;}
+.mic-btn.recording{
+  background:#ffe5e5;border-color:#e44d36;color:#e44d36;
+  animation:micPulse 1.2s infinite;
+}
+@keyframes micPulse{
+  0%{box-shadow:0 0 0 0 rgba(228,77,54,.7);}
+  70%{box-shadow:0 0 0 12px rgba(228,77,54,0);}
+  100%{box-shadow:0 0 0 0 rgba(228,77,54,0);}
+}
+
+/* Recording HUD */
+.rec-hud{
+  display:none;padding:8px 14px;
+  background:#fff1f0;border-top:2px solid #e44d36;
+  align-items:center;gap:10px;flex-shrink:0;
+}
+.rec-hud.on{display:flex;}
+.rec-dot{width:9px;height:9px;border-radius:50%;background:#e44d36;animation:micPulse 1.2s infinite;flex-shrink:0;}
+.rec-timer{font-size:14px;font-weight:700;color:#e44d36;min-width:46px;}
+.rec-label{font-size:12px;color:#888;flex:1;}
+.rec-cancel{background:none;border:none;cursor:pointer;font-size:20px;color:#aaa;padding:0 2px;line-height:1;transition:color .15s;}
+.rec-cancel:hover{color:#e44d36;}
+
+/* ── Audio bubble ── */
+.bbl-audio{
+  display:flex;align-items:center;gap:8px;
+  background:inherit;
+  padding:4px 0 2px;
+  min-width:190px;max-width:240px;
+}
+.audio-play-btn{
+  background:rgba(255,255,255,.9);border:none;border-radius:50%;
+  width:34px;height:34px;cursor:pointer;font-size:14px;flex-shrink:0;
+  display:flex;align-items:center;justify-content:center;
+  transition:transform .1s,background .12s;
+  box-shadow:0 1px 4px rgba(0,0,0,.15);
+}
+.audio-play-btn:active{transform:scale(.9);}
+.audio-wave-wrap{flex:1;display:flex;flex-direction:column;gap:3px;min-width:0;}
+.audio-wave{
+  display:flex;align-items:center;gap:2px;height:28px;cursor:pointer;
+}
+.wave-bar{
+  flex:1;border-radius:2px;min-width:2px;
+  background:rgba(255,255,255,.5);
+  transition:background .15s;
+}
+.bbl.out .wave-bar{background:rgba(255,255,255,.5);}
+.bbl.in .wave-bar{background:rgba(128,0,32,.35);}
+.wave-bar.played{background:rgba(255,255,255,.95);}
+.bbl.in .wave-bar.played{background:#800020;}
+.audio-time{font-size:10px;opacity:.7;}
+
 /* Upload progress overlay */
 .upload-overlay{position:fixed;bottom:80px;left:50%;transform:translateX(-50%);background:rgba(0,0,0,.8);color:#fff;padding:10px 20px;border-radius:100px;font-size:13px;font-weight:600;z-index:9800;display:none;align-items:center;gap:10px;}
 .upload-overlay.show{display:flex;}
@@ -662,11 +725,19 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,sa
   <!-- Footer with emoji panel -->
   <div style="position:relative;">
     <div class="emoji-panel" id="emojiPanel"></div>
+    <!-- Recording HUD -->
+    <div class="rec-hud" id="recHud">
+      <div class="rec-dot"></div>
+      <span class="rec-timer" id="recTimer">0:00</span>
+      <span class="rec-label">Recording voice note…</span>
+      <button class="rec-cancel" id="recCancel" title="Cancel">✕</button>
+    </div>
     <div class="chat-footer">
       <div class="footer-left">
         <button class="emoji-btn" id="emojiBtn" title="Emoji">😊</button>
-        <button class="img-btn" id="imgBtn" title="Send image">📷</button>
+        <button class="img-btn" id="imgBtn" title="Send image/video">📷</button>
         <input type="file" id="imgFileInput" accept="image/*,video/*"/>
+        <button class="mic-btn" id="micBtn" title="Hold to record voice note">🎤</button>
       </div>
       <textarea class="chat-input" id="chatInput" rows="1" placeholder="Message…"></textarea>
       <button class="send-btn" id="sendBtn">➤</button>
@@ -761,6 +832,94 @@ const imgBtn=$("imgBtn"),imgFileInput=$("imgFileInput");
 const imgViewer=$("imgViewer"),imgViewerImg=$("imgViewerImg"),imgViewerClose=$("imgViewerClose"),imgViewerDl=$("imgViewerDl");
 const emojiBtn=$("emojiBtn"),emojiPanel=$("emojiPanel");
 const uploadOverlay=$("uploadOverlay"),uploadPct=$("uploadPct");
+const micBtn=$("micBtn"),recHud=$("recHud"),recTimer=$("recTimer"),recCancel=$("recCancel");
+
+/* ═══════════════════════════════════════════
+   VOICE NOTE RECORDING
+═══════════════════════════════════════════ */
+let mediaRecorder=null,audioChunks=[],isRecording=false,recTimerInterval=null,recSeconds=0;
+
+function fmtRecTime(s){const m=Math.floor(s/60),sec=s%60;return m+":"+(sec<10?"0":"")+sec;}
+
+function startRecording(){
+  if(!me){showBanner("Please login first.");return;}
+  navigator.mediaDevices.getUserMedia({audio:true}).then(stream=>{
+    audioChunks=[];isRecording=true;recSeconds=0;
+    mediaRecorder=new MediaRecorder(stream);
+    mediaRecorder.start();
+    mediaRecorder.ondataavailable=e=>{if(e.data.size>0)audioChunks.push(e.data);};
+    mediaRecorder.onstop=()=>{
+      stream.getTracks().forEach(t=>t.stop());
+      if(audioChunks.length>0){
+        const blob=new Blob(audioChunks,{type:"audio/webm"});
+        uploadVoiceNote(blob);
+      }
+      audioChunks=[];
+    };
+    // UI
+    micBtn.textContent="🛑";micBtn.classList.add("recording");
+    recHud.classList.add("on");
+    recTimer.textContent="0:00";
+    recTimerInterval=setInterval(()=>{recSeconds++;recTimer.textContent=fmtRecTime(recSeconds);},1000);
+  }).catch(()=>showBanner("❌ Microphone permission denied."));
+}
+
+function stopRecording(cancel=false){
+  if(!isRecording||!mediaRecorder)return;
+  clearInterval(recTimerInterval);
+  isRecording=false;
+  if(cancel)audioChunks=[];
+  mediaRecorder.stop();
+  micBtn.textContent="🎤";micBtn.classList.remove("recording");
+  recHud.classList.remove("on");
+}
+
+async function uploadVoiceNote(blob){
+  if(!me)return;
+  const savedReply=replyTo?{...replyTo}:null;
+  cancelReply();
+  uploadOverlay.classList.add("show");
+  uploadPct.textContent="Sending voice note…";
+  try{
+    const fd=new FormData();
+    fd.append("upload_preset",CLOUDINARY_PRESET);
+    fd.append("file",blob,"voicenote.webm");
+    const resp=await fetch(CLOUDINARY_URL,{method:"POST",body:fd});
+    const data=await resp.json();
+    if(!data.secure_url)throw new Error(data.error?.message||"Upload failed");
+    uploadOverlay.classList.remove("show");
+    const payload={text:"",sender:me,ts:firebase.database.ServerValue.TIMESTAMP,audioUrl:data.secure_url};
+    if(savedReply)payload.replyTo=savedReply;
+    await db.ref("akchat/messages").push(payload);
+    hideBanner();
+  }catch(err){
+    uploadOverlay.classList.remove("show");
+    showBanner("Voice note failed: "+err.message);
+  }
+}
+
+// Desktop: click to start / click to stop
+micBtn.addEventListener("click",e=>{
+  e.stopPropagation();
+  if(!isRecording)startRecording();
+  else stopRecording(false);
+});
+
+// Mobile: hold to record, release to send
+micBtn.addEventListener("touchstart",e=>{
+  e.preventDefault();e.stopPropagation();
+  if(!isRecording)startRecording();
+},{passive:false});
+micBtn.addEventListener("touchend",e=>{
+  e.preventDefault();e.stopPropagation();
+  if(isRecording)stopRecording(false);
+},{passive:false});
+
+// Cancel button
+recCancel.addEventListener("click",e=>{
+  e.stopPropagation();
+  stopRecording(true);
+});
 
 /* ═══════════════════════════════════════════
    BANNER
@@ -1337,6 +1496,9 @@ function renderMsg(key,d){
     } else if(d.replyTo.videoUrl){
       rpt.textContent="🎥 Video";
       rp.appendChild(rpn);rp.appendChild(rpt);
+    } else if(d.replyTo.audioUrl){
+      rpt.textContent="🎤 Voice note";
+      rp.appendChild(rpn);rp.appendChild(rpt);
     } else {
       rpt.textContent=d.replyTo.text||"";
       rp.appendChild(rpn);rp.appendChild(rpt);
@@ -1382,6 +1544,78 @@ function renderMsg(key,d){
       imgViewer.classList.add("on");
     });
     wrap2.appendChild(img);bbl.appendChild(wrap2);
+  }
+
+  // Audio (Voice Note)
+  if(d.audioUrl){
+    const audioBbl=document.createElement("div");
+    audioBbl.className="bbl-audio";
+
+    // Play/Pause button
+    const aPlayBtn=document.createElement("button");aPlayBtn.className="audio-play-btn";
+    aPlayBtn.innerHTML='<span>▶</span>';
+
+    const aWaveWrap=document.createElement("div");aWaveWrap.className="audio-wave-wrap";
+
+    // Fake waveform bars (decorative — 28 bars with random heights)
+    const waveEl=document.createElement("div");waveEl.className="audio-wave";
+    const BAR_COUNT=28;
+    const heights=[40,60,80,55,70,90,45,75,85,50,65,95,60,70,40,80,55,90,65,50,75,85,45,70,60,80,50,65];
+    for(let i=0;i<BAR_COUNT;i++){
+      const b=document.createElement("div");b.className="wave-bar";
+      b.style.height=(heights[i%heights.length])+'%';
+      waveEl.appendChild(b);
+    }
+
+    const aTimeEl=document.createElement("span");aTimeEl.className="audio-time";aTimeEl.textContent="0:00";
+
+    aWaveWrap.appendChild(waveEl);aWaveWrap.appendChild(aTimeEl);
+    audioBbl.appendChild(aPlayBtn);audioBbl.appendChild(aWaveWrap);
+    bbl.appendChild(audioBbl);
+
+    // Audio element (hidden)
+    const aud=new Audio(d.audioUrl);
+    aud.preload="metadata";
+    let audPlaying=false;
+
+    const fmt2=s=>{if(!isFinite(s)||isNaN(s))return"0:00";const m=Math.floor(s/60),sec=Math.floor(s%60);return m+":"+(sec<10?"0":"")+sec;};
+
+    aud.addEventListener("loadedmetadata",()=>{aTimeEl.textContent=fmt2(aud.duration);});
+    aud.addEventListener("timeupdate",()=>{
+      aTimeEl.textContent=fmt2(aud.currentTime)+" / "+fmt2(aud.duration);
+      const pct=aud.duration?aud.currentTime/aud.duration:0;
+      const bars=waveEl.querySelectorAll(".wave-bar");
+      const played=Math.round(pct*bars.length);
+      bars.forEach((b,i)=>{ b.classList.toggle("played",i<played); });
+    });
+    aud.addEventListener("ended",()=>{
+      audPlaying=false;aPlayBtn.innerHTML='<span>▶</span>';
+      aTimeEl.textContent=fmt2(aud.duration);
+      waveEl.querySelectorAll(".wave-bar").forEach(b=>b.classList.remove("played"));
+    });
+
+    aPlayBtn.addEventListener("click",e=>{
+      e.stopPropagation();
+      if(audPlaying){aud.pause();audPlaying=false;aPlayBtn.innerHTML='<span>▶</span>';}
+      else{
+        // Pause any other playing audio
+        document.querySelectorAll(".audio-playing").forEach(a=>{
+          try{a._audEl.pause();}catch(ex){}
+          a.innerHTML='<span>▶</span>';a.classList.remove("audio-playing");
+        });
+        aud.play().catch(()=>{});
+        audPlaying=true;aPlayBtn.innerHTML='<span>⏸</span>';
+        aPlayBtn.classList.add("audio-playing");aPlayBtn._audEl=aud;
+      }
+    });
+
+    // Scrub by clicking waveform
+    waveEl.addEventListener("click",e=>{
+      e.stopPropagation();
+      if(!aud.duration)return;
+      const r=waveEl.getBoundingClientRect();
+      aud.currentTime=((e.clientX-r.left)/r.width)*aud.duration;
+    });
   }
 
   // Video
